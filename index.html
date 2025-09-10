@@ -1,52 +1,58 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>NLP · PyTorch 练习题</title>
-  <link rel="stylesheet" href="./styles.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <!-- Markdown renderer + sanitizer -->
+  <title>PyTorch 练习题库浏览</title>
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Markdown 渲染 & 代码高亮（CDN）-->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/highlight.min.js"></script>
 </head>
 <body>
-  <div class="page">
-    <header class="header">
-      <div class="title">NLP · PyTorch 练习题</div>
-      <div class="actions">
-        <button id="randomBtn" class="btn">随机练习</button>
-      </div>
-    </header>
-
-    <main class="main">
-      <aside class="sidebar">
-        <div class="tabs" id="tabs"></div>
+  <div class="layout">
+    <!-- 左侧：目录栏 -->
+    <aside class="sidebar">
+      <header class="sidebar-header">
+        <h1>题库</h1>
+        <div class="actions">
+          <button id="randomBtn" class="btn">随机一题 🎲</button>
+        </div>
         <div class="search">
-          <input id="searchInput" placeholder="搜索题目…" />
+          <input id="searchInput" type="text" placeholder="搜索题目..." />
         </div>
-        <div class="list" id="fileList"></div>
-      </aside>
+        <p class="hint">页面会自动从 <code>/content/</code> 目录加载题目。</p>
+      </header>
 
-      <section class="content">
-        <div class="content-header">
-          <div id="contentTitle" class="content-title">选择左侧题目开始练习</div>
-          <a id="viewRawLink" class="view-raw" href="#" target="_blank" rel="noreferrer" style="display:none;">在 GitHub 查看原文 →</a>
+      <nav id="toc" class="toc">
+        <!-- 目录由 JS 注入：四个分组 -->
+      </nav>
+      <footer class="sidebar-footer">
+        <small>支持目录：入门（ABC）、简单（easy）、中等困难（middling）、困难（hard）</small>
+      </footer>
+    </aside>
+
+    <!-- 右侧：内容栏 -->
+    <main class="content">
+      <div class="doc-toolbar">
+        <div class="breadcrumb" id="breadcrumb">正在加载题目列表…</div>
+        <div class="toolbar-right">
+          <button id="openRawBtn" class="icon-btn" title="在新标签打开原始 Markdown" disabled>🗎</button>
+          <button id="copyLinkBtn" class="icon-btn" title="复制直达链接" disabled>🔗</button>
         </div>
-        <div id="contentBody" class="markdown-body">
-          <div class="hint">点击左侧任意题目，或点“随机练习”快速开始。</div>
+      </div>
+      <article id="article" class="article markdown-body">
+        <div class="empty">
+          <div class="spinner"></div>
+          <h2>准备就绪后从左侧选择题目</h2>
+          <p>若长时间未加载到内容，请确认静态服务器支持目录索引（或在 <code>/content/</code> 下添加 <code>manifest.json</code>）。</p>
         </div>
-        <div id="comments" class="comments"></div>
-      </section>
+      </article>
     </main>
-
-    <footer class="footer">
-      © <span id="year"></span> NLP PyTorch 练习 · 基于 GitHub 内容自动生成
-    </footer>
   </div>
 
-  <script src="./app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

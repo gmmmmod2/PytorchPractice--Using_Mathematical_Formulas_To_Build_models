@@ -1,242 +1,315 @@
-// 单文件 JS：配置 + GitHub API + UI + 逻辑 + Giscus
-(function () {
-  'use strict';
+// ====================== 配置与状态 ======================
+const CATEGORY_LABELS = {
+  ABC: "入门（ABC）",
+  easy: "简单（easy）",
+  middling: "中等困难（middling）",
+  hard: "困难（hard）",
+};
+const CATEGORY_ORDER = ["ABC", "easy", "middling", "hard"];
+const CONTENT_BASE = "content"; // 与 index.html 同目录
 
-  /* ================= 配置 ================= */
-  const CONFIG = {
-    github: {
-      owner: "gmmmmod2",
-      repo: "PytorchPractice--Using_Mathematical_Formulas_To_Build_models",
-      branch: "main",
-      basePath: "content",
-    },
-    categories: [
-      { key: "rumen", label: "入门",   folder: "入门" },
-      { key: "jichu", label: "基础",   folder: "基础" },
-      { key: "zhongdeng", label: "中等", folder: "中等" },
-      { key: "kunnan", label: "困难",   folder: "困难" },
-    ],
-    giscus: {
-      // 到 https://giscus.app 绑定你的仓库后，填入以下四项
-      repo: "gmmmmod2/PytorchPractice--Using_Mathematical_Formulas_To_Build_models",
-      repoId: "",      // 形如 R_kgDOxxxxxx
-      category: "General",
-      categoryId: "",  // 形如 DIC_kwDOxxxxxx4Cxxxx
-    },
+const state = {
+  loaded: false,
+  items: {
+    ABC: [],
+    easy: [],
+    middling: [],
+    hard: [],
+  },
+  active: null, // {category, name, source: 'remote', url}
+};
+
+// ====================== DOM 工具 ======================
+const $ = (sel, root = document) => root.querySelector(sel);
+const createEl = (tag, cls) => {
+  const el = document.createElement(tag);
+  if (cls) el.className = cls;
+  return el;
+};
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const extIsMd = (name) => /\.md$/i.test(name);
+
+// ====================== 渲染函数 ======================
+function renderMarkdown(mdText) {
+  marked.setOptions({ breaks: true, gfm: true, mangle: false, headerIds: true });
+  const html = marked.parse(mdText || "");
+  const article = $("#article");
+  article.innerHTML = html;
+  document.querySelectorAll('pre code').forEach(block => {
+    try { hljs.highlightElement(block); } catch(e){}
+  });
+}
+
+function updateToolbar() {
+  const bc = $("#breadcrumb");
+  const openRawBtn = $("#openRawBtn");
+  const copyLinkBtn = $("#copyLinkBtn");
+  if (!state.active) {
+    bc.textContent = "请选择左侧题目";
+    openRawBtn.disabled = true;
+    copyLinkBtn.disabled = true;
+    return;
+  }
+  const { category, name, url } = state.active;
+  bc.textContent = `${CATEGORY_LABELS[category]} / ${name}`;
+  openRawBtn.disabled = false;
+  openRawBtn.onclick = () => window.open(url, "_blank");
+  copyLinkBtn.disabled = false;
+  copyLinkBtn.onclick = async () => {
+    const hash = `#/${encodeURIComponent(category)}/${encodeURIComponent(name)}`;
+    history.replaceState(null, "", hash);
+    await navigator.clipboard.writeText(location.href);
+    copyLinkBtn.textContent = "已复制 ✔";
+    await sleep(1200);
+    copyLinkBtn.textContent = "🔗";
   };
+}
 
-  /* =============== GitHub API =============== */
-  const API_BASE = (owner, repo) => `https://api.github.com/repos/${owner}/${repo}/contents`;
+function highlightActive(category, name) {
+  document.querySelectorAll(".section-list .item").forEach(li => {
+    li.classList.toggle("active",
+      li.dataset.category === category && li.dataset.name === name
+    );
+  });
+}
 
-  async function listDir(path, ref) {
-    const url = `${API_BASE(CONFIG.github.owner, CONFIG.github.repo)}/${encodeURIComponent(path)}?ref=${encodeURIComponent(ref)}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`GitHub API 读取目录失败: ${res.status}`);
-    const data = await res.json();
-    if (!Array.isArray(data)) return [];
-    return data
-      .filter(x => x.type === 'file' && /\.md$/i.test(x.name))
-      .map(x => ({
-        name: x.name,
-        path: x.path,
-        sha: x.sha,
-        download_url: x.download_url,
-      }));
-  }
+function buildItemLi(category, item) {
+  const li = createEl("div", "item");
+  li.dataset.category = category;
+  li.dataset.name = item.name;
+  li.innerHTML = `📄 <span class="title">${item.name}</span>`;
+  li.onclick = () => openItem(category, item.name);
+  return li;
+}
 
-  async function fetchMarkdownRaw(downloadUrl) {
-    const res = await fetch(downloadUrl);
-    if (!res.ok) throw new Error(`读取题目内容失败: ${res.status}`);
-    return await res.text();
-  }
+function renderTOC() {
+  const toc = $("#toc");
+  toc.innerHTML = "";
+  CATEGORY_ORDER.forEach(cat => {
+    const section = createEl("div", "section");
+    const header = createEl("div", "section-header");
+    header.innerHTML = `
+      <h3>${CATEGORY_LABELS[cat]}</h3>
+      <span class="section-count">${state.items[cat].length}</span>
+      <span class="chev">▾</span>
+    `;
+    const list = createEl("div", "section-list");
+    state.items[cat]
+      .sort((a,b) => a.name.localeCompare(b.name, 'zh-Hans-CN'))
+      .forEach(item => list.appendChild(buildItemLi(cat, item)));
 
-  async function getCatalog() {
-    const { basePath, branch } = CONFIG.github;
-    const result = {};
-    for (const c of CONFIG.categories) {
-      const dirPath = `${basePath}/${c.folder}`;
-      try {
-        const files = await listDir(dirPath, branch);
-        result[c.key] = files;
-      } catch (e) {
-        console.warn('目录读取失败', dirPath, e);
-        result[c.key] = [];
-      }
-    }
-    return result;
-  }
+    header.onclick = () => section.classList.toggle("open");
+    section.appendChild(header);
+    section.appendChild(list);
+    if (state.items[cat].length) section.classList.add("open");
+    toc.appendChild(section);
+  });
+}
 
-  /* =============== UI helpers =============== */
-  function buildTabs(activeKey, onChange) {
-    const tabs = document.getElementById('tabs');
-    tabs.innerHTML = '';
-    CONFIG.categories.forEach(c => {
-      const btn = document.createElement('button');
-      btn.className = 'tab' + (c.key === activeKey ? ' active' : '');
-      btn.textContent = c.label;
-      btn.addEventListener('click', () => onChange(c.key));
-      tabs.appendChild(btn);
+function setupSearch() {
+  const input = $("#searchInput");
+  input.addEventListener("input", () => {
+    const q = input.value.trim().toLowerCase();
+    document.querySelectorAll(".section-list .item").forEach(li => {
+      const title = li.querySelector(".title")?.textContent?.toLowerCase() || "";
+      li.style.display = title.includes(q) ? "" : "none";
     });
+  });
+}
+
+// ====================== 打开题目 ======================
+async function openItem(category, name) {
+  const entry = state.items[category].find(it => it.name === name);
+  if (!entry) return;
+
+  let text = "";
+  try {
+    const res = await fetch(entry.url);
+    if (!res.ok) throw new Error(`加载失败: ${res.status}`);
+    text = await res.text();
+  } catch (e) {
+    text = `> 无法加载该题目：${e.message}`;
   }
 
-  function buildFileList(files, activePath, onClick) {
-    const list = document.getElementById('fileList');
-    list.innerHTML = '';
-    files.forEach(f => {
-      const btn = document.createElement('button');
-      btn.className = 'file-item' + (f.path === activePath ? ' active' : '');
-      btn.innerHTML = f.name.replace(/\.md$/i, '');
-      btn.addEventListener('click', () => onClick(f));
-      list.appendChild(btn);
-    });
-  }
+  state.active = { category, name, source: "remote", url: entry.url };
+  renderMarkdown(text);
+  updateToolbar();
+  highlightActive(category, name);
+}
 
-  function setContentTitle(title) {
-    const el = document.getElementById('contentTitle');
-    if (el) el.textContent = title;
+function pickRandom() {
+  const all = CATEGORY_ORDER.flatMap(cat => state.items[cat].map(it => ({...it, category: cat})));
+  if (!all.length) {
+    alert("未发现可用题目，请确认服务器允许目录索引或提供 content/manifest.json。");
+    return;
   }
+  const idx = Math.floor(Math.random() * all.length);
+  const { category, name } = all[idx];
+  openItem(category, name);
+  document.querySelectorAll(".section").forEach(sec => {
+    const h3 = sec.querySelector("h3")?.textContent || "";
+    if (h3.includes(CATEGORY_LABELS[category])) sec.classList.add("open");
+  });
+}
 
-  function setViewRawLink(url) {
-    const a = document.getElementById('viewRawLink');
-    if (!a) return;
-    if (url) {
-      a.href = url;
-      a.style.display = 'inline';
-    } else {
-      a.style.display = 'none';
+function tryOpenFromHash() {
+  if (!location.hash.startsWith("#/")) return;
+  const [, catEnc, nameEnc] = location.hash.split("/");
+  const cat = decodeURIComponent(catEnc || "");
+  const name = decodeURIComponent(nameEnc || "");
+  if (CATEGORY_ORDER.includes(cat) && name) {
+    let tries = 0;
+    const t = setInterval(() => {
+      tries++;
+      const has = state.items[cat]?.some(it => it.name === name);
+      if (has) { clearInterval(t); openItem(cat, name); }
+      if (tries > 40) clearInterval(t);
+    }, 200);
+  }
+}
+
+// ====================== 自动扫描 /content/ ======================
+// 策略：manifest.json -> 目录索引解析 -> 失败提示
+async function loadFromContent() {
+  const hasManifest = await tryLoadManifest();
+  if (hasManifest) return true;
+
+  const viaIndex = await tryLoadByDirectoryIndex();
+  if (viaIndex) return true;
+
+  // 失败：显示提示
+  $("#article").innerHTML = `
+    <div class="empty">
+      <h2>没有找到题目</h2>
+      <p>请确认以下任意条件：</p>
+      <ol>
+        <li>在 <code>/content/</code> 下提供 <code>manifest.json</code>，格式：
+          <pre><code>{
+  "ABC": ["题目A.md", "题目B.md"],
+  "easy": [],
+  "middling": [],
+  "hard": []
+}</code></pre>
+        </li>
+        <li>或启用目录索引（Nginx/Apache/Vite/Live Server）以便页面能解析出 <code>.md</code> 文件。</li>
+      </ol>
+    </div>`;
+  return false;
+}
+
+// 方案一：manifest.json
+async function tryLoadManifest() {
+  try {
+    const res = await fetch(`${CONTENT_BASE}/manifest.json?ts=${Date.now()}`);
+    if (!res.ok) return false;
+    const manifest = await res.json();
+    const next = { ABC: [], easy: [], middling: [], hard: [] };
+    for (const cat of CATEGORY_ORDER) {
+      (manifest[cat] || []).filter(n => extIsMd(n)).forEach(filename => {
+        next[cat].push({
+          name: filename.replace(/\.md$/i, ""),
+          url: `${CONTENT_BASE}/${cat}/${encodeURIComponent(filename)}`
+        });
+      });
     }
-  }
-
-  function renderMarkdown(mdText) {
-    const html = marked.parse(mdText ?? '');
-    return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
-  }
-
-  /* =============== Giscus（评论） =============== */
-  function mountComments(termPath) {
-    const container = document.getElementById('comments');
-    if (!container) return;
-    container.innerHTML = '';
-
-    // 如果还没配置 repoId/categoryId，则给出提示，但不加载 giscus
-    if (!CONFIG.giscus.repoId || !CONFIG.giscus.categoryId) {
-      const tip = document.createElement('div');
-      tip.className = 'hint';
-      tip.textContent = '（提示：尚未配置 Giscus repoId/categoryId，前往 https://giscus.app 绑定仓库后填入 app.js 顶部配置即可启用评论。）';
-      container.appendChild(tip);
-      return;
-    }
-
-    // 动态插入 giscus 脚本
-    const script = document.createElement('script');
-    script.src = 'https://giscus.app/client.js';
-    script.async = true;
-    script.crossOrigin = 'anonymous';
-
-    script.setAttribute('data-repo', CONFIG.giscus.repo);
-    script.setAttribute('data-repo-id', CONFIG.giscus.repoId);
-    script.setAttribute('data-category', CONFIG.giscus.category);
-    script.setAttribute('data-category-id', CONFIG.giscus.categoryId);
-    script.setAttribute('data-mapping', 'specific');
-    script.setAttribute('data-term', termPath);
-    script.setAttribute('data-strict', '1');
-    script.setAttribute('data-reactions-enabled', '1');
-    script.setAttribute('data-emit-metadata', '0');
-    script.setAttribute('data-input-position', 'top');
-    script.setAttribute('data-theme', 'dark');
-    script.setAttribute('data-lang', 'zh-CN');
-
-    container.appendChild(script);
-  }
-
-  /* =============== 应用逻辑 =============== */
-  let catalog = null;
-  let activeCatKey = CONFIG.categories[0].key;
-  let activeFile = null;
-
-  function allFilesFlat() {
-    if (!catalog) return [];
-    return Object.values(catalog).flat();
-  }
-
-  function pickRandom() {
-    const all = allFilesFlat();
-    if (!all.length) return null;
-    return all[Math.floor(Math.random() * all.length)];
-  }
-
-  function updateHash(path) {
-    if (path) window.location.hash = encodeURIComponent(path);
-  }
-
-  async function openFile(file) {
-    if (!file) return;
-    activeFile = file;
-    setContentTitle(file.name.replace(/\.md$/i, ''));
-    setViewRawLink(file.download_url);
-
-    const body = document.getElementById('contentBody');
-    body.innerHTML = '<div class="hint">正在加载内容…</div>';
-    try {
-      const md = await fetchMarkdownRaw(file.download_url);
-      body.innerHTML = renderMarkdown(md);
-    } catch (e) {
-      body.innerHTML = '<div class="hint">读取失败，请稍后再试。</div>';
-    }
-
-    mountComments(file.path);
-    updateHash(file.path);
-    const cat = CONFIG.categories.find(c => file.path.includes(`/${c.folder}/`));
-    if (cat) activeCatKey = cat.key;
-    refreshSidebar();
-  }
-
-  function refreshSidebar() {
-    buildTabs(activeCatKey, (key) => {
-      activeCatKey = key;
-      renderFileList();
-    });
-    renderFileList();
-  }
-
-  function renderFileList() {
-    const list = (catalog && catalog[activeCatKey]) ? catalog[activeCatKey] : [];
-    const qEl = document.getElementById('searchInput');
-    const q = (qEl.value || '').trim().toLowerCase();
-    const filtered = q ? list.filter(f => f.name.toLowerCase().includes(q)) : list;
-    buildFileList(filtered, activeFile && activeFile.path, openFile);
-  }
-
-  function tryOpenFromHash() {
-    const h = decodeURIComponent((window.location.hash || '').replace(/^#/, ''));
-    if (!h) return false;
-    const found = allFilesFlat().find(x => x.path === h);
-    if (found) { openFile(found); return true; }
+    state.items = next;
+    state.loaded = true;
+    renderTOC();
+    updateCounts();
+    return true;
+  } catch {
     return false;
   }
+}
 
-  async function main() {
-    document.getElementById('year').textContent = String(new Date().getFullYear());
+// 方案二：解析目录索引（HTML）
+async function tryLoadByDirectoryIndex() {
+  const next = { ABC: [], easy: [], middling: [], hard: [] };
+  let anyFound = false;
 
-    try {
-      catalog = await getCatalog();
-      refreshSidebar();
-      if (!tryOpenFromHash()) {
-        // 初始不打开题
-      }
-    } catch (err) {
-      console.error(err);
-      const body = document.getElementById('contentBody');
-      body.innerHTML = '<div class="hint">初始化失败，请检查网络或仓库配置（确保仓库为 Public 且存在 content/四个目录）。</div>';
+  for (const cat of CATEGORY_ORDER) {
+    const ok = await parseIndexForCategory(cat, next);
+    anyFound = anyFound || ok;
+  }
+  if (!anyFound) return false;
+
+  state.items = next;
+  state.loaded = true;
+  renderTOC();
+  updateCounts();
+  return true;
+}
+
+async function parseIndexForCategory(cat, next) {
+  try {
+    // 请求目录本身，例如 /content/ABC/ —— 若服务器开启索引，会返回一个包含链接的 HTML
+    const url = `${CONTENT_BASE}/${cat}/`;
+    const res = await fetch(url, { method: "GET" });
+    if (!res.ok) return false;
+    const text = await res.text();
+
+    // 尝试从 HTML 中提取 .md 文件链接（兼容多种目录索引格式）
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, "text/html");
+    const links = Array.from(doc.querySelectorAll("a"))
+      .map(a => a.getAttribute("href"))
+      .filter(Boolean);
+
+    const mdNames = links
+      .map(href => decodeURIComponent(href))
+      .filter(href => extIsMd(href))
+      .map(href => href.split("/").pop());
+
+    mdNames.forEach(filename => {
+      next[cat].push({
+        name: filename.replace(/\.md$/i, ""),
+        url: `${CONTENT_BASE}/${cat}/${encodeURIComponent(filename)}`
+      });
+    });
+
+    // 兼容某些纯文本索引或无 <a> 的情况，做一次兜底正则
+    if (!mdNames.length) {
+      const rx = />([^<>"]+?\.md)</gi;
+      let m; const found = [];
+      while ((m = rx.exec(text))) found.push(m[1]);
+      found.forEach(filename => {
+        next[cat].push({
+          name: filename.replace(/\.md$/i, ""),
+          url: `${CONTENT_BASE}/${cat}/${encodeURIComponent(filename)}`
+        });
+      });
     }
 
-    document.getElementById('searchInput').addEventListener('input', renderFileList);
-    document.getElementById('randomBtn').addEventListener('click', () => {
-      const f = pickRandom();
-      if (f) openFile(f);
-    });
-    window.addEventListener('hashchange', () => { tryOpenFromHash(); });
+    return next[cat].length > 0;
+  } catch {
+    return false;
   }
+}
 
-  main();
-})();
+function updateCounts() {
+  document.querySelectorAll(".section").forEach((sec, i) => {
+    const cat = CATEGORY_ORDER[i];
+    const count = state.items[cat]?.length || 0;
+    sec.querySelector(".section-count")?.textContent = count;
+  });
+}
+
+// ====================== 初始化 ======================
+async function init() {
+  setupSearch();
+  $("#randomBtn").addEventListener("click", pickRandom);
+
+  await loadFromContent();
+  renderTOC();
+  updateCounts();
+  tryOpenFromHash();
+
+  const firstSec = $(".section");
+  if (firstSec) firstSec.classList.add("open");
+
+  $("#breadcrumb").textContent = state.loaded
+    ? "请选择左侧题目"
+    : "未加载到题目，请检查 /content/ 配置";
+}
+
+document.addEventListener("DOMContentLoaded", init);
