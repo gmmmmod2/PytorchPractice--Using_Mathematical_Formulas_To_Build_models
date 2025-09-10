@@ -289,3 +289,63 @@ h3 {
 .katex-display {
   margin: 1em 0;
 }
+
+/* 代码块容器：定位工具按钮与徽标 */
+.markdown-body pre.code-block {
+  position: relative;
+  /* 用于定位右上角按钮/徽标 */
+  padding-top: 40px;
+  /* 预留顶部空间放按钮与语言徽标 */
+}
+
+/* 复制按钮 */
+.copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: 1px solid var(--border);
+  background: #11151a;
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  opacity: .0;
+  /* 初始隐藏，悬浮时出现 */
+  transition: opacity .18s ease, transform .1s ease;
+  box-shadow: var(--shadow);
+}
+
+.markdown-body pre.code-block:hover .copy-btn {
+  opacity: 1;
+}
+
+.copy-btn:active {
+  transform: translateY(1px);
+}
+
+.copy-btn.copied {
+  border-color: #2e7d32;
+  background: #0f2a14;
+}
+
+/* 语言徽标 */
+.code-lang {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  font-size: 12px;
+  color: var(--muted);
+  background: #0b0e12;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 8px;
+  text-transform: lowercase;
+  pointer-events: none;
+}
+
+/* 让 highlight.js 主题在你当前配色下更清晰 */
+.hljs {
+  color: var(--text);
+  background: transparent;
+  /* 我们用 pre 的背景 */
+}

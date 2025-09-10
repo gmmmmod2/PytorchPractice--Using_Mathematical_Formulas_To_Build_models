@@ -64,19 +64,41 @@ function preprocessMathBlocks(md) {
 }
 
 function renderMarkdown(mdText) {
-  // 先把 $$...$$ 块替换成占位容器，避免被 Marked 拆段
+  // 先处理 $$...$$，避免被 Marked 拆段
   const preprocessed = preprocessMathBlocks(mdText);
 
-  // 正常 Markdown -> HTML
-  marked.setOptions({ breaks: true, gfm: true, mangle: false, headerIds: true });
-  $("#article").innerHTML = marked.parse(preprocessed || "");
-
-  // 代码高亮
-  document.querySelectorAll("pre code").forEach(block => {
-    try { hljs.highlightElement(block); } catch(e){}
+  // 让 Marked 在生成 HTML 时就做高亮
+  marked.setOptions({
+    breaks: true,
+    gfm: true,
+    mangle: false,
+    headerIds: true,
+    highlight(code, lang) {
+      try {
+        if (lang && hljs.getLanguage(lang)) {
+          return hljs.highlight(code, { language: lang }).value;
+        }
+        return hljs.highlightAuto(code).value;
+      } catch {
+        return code;
+      }
+    }
   });
 
-  // 先渲染块级数学（我们自己包的 .math-block）
+  // 写入 HTML
+  $("#article").innerHTML = marked.parse(preprocessed || "");
+
+  // 兜底：如果某些块没有被高亮到，再走一次
+  document.querySelectorAll("#article pre code").forEach(block => {
+    if (!block.classList.contains("hljs")) {
+      try { hljs.highlightElement(block); } catch (e) {}
+    }
+  });
+
+  // 注入复制按钮 & 语言徽标
+  enhanceCodeBlocks();
+
+  // 数学渲染（块级→行内）
   try {
     document.querySelectorAll("#article .math-block").forEach(el => {
       const tex = el.textContent.trim();
@@ -84,28 +106,77 @@ function renderMarkdown(mdText) {
         katex.render(tex, el, { displayMode: true, throwOnError: false });
       }
     });
-  } catch (e) {
-    console.warn("KaTeX block render failed:", e);
-  }
+  } catch (e) { console.warn("KaTeX block render failed:", e); }
 
-  // 再渲染行内数学（交给 KaTeX auto-render）
   try {
     if (window.renderMathInElement) {
       window.renderMathInElement($("#article"), {
         delimiters: [
-          // 注意：这里不再包含 $$...$$，因为上面已处理
           { left: "$",  right: "$",  display: false },
           { left: "\\(", right: "\\)", display: false },
-          { left: "\\[", right: "\\]", display: true }  // 可选：支持 \[...\] 行间
+          { left: "\\[", right: "\\]", display: true }
         ],
         throwOnError: false,
         ignoredTags: ["script","noscript","style","textarea","pre","code"]
       });
     }
-  } catch (e) {
-    console.warn("KaTeX inline render failed:", e);
-  }
+  } catch (e) { console.warn("KaTeX inline render failed:", e); }
 }
+
+// 为代码块加复制按钮与语言徽标
+function enhanceCodeBlocks() {
+  document.querySelectorAll("#article pre").forEach(pre => {
+    const code = pre.querySelector("code");
+    if (!code) return;
+
+    // 容器样式挂个 class，方便 CSS 定位
+    pre.classList.add("code-block");
+
+    // 语言徽标（从 className 提取）
+    const lang =
+      (code.className.match(/language-([a-z0-9+\-]+)/i) || [])[1] ||
+      (code.className.match(/hljs\s+([a-z0-9+\-]+)/i) || [])[1] ||
+      "";
+
+    if (lang) {
+      const badge = document.createElement("span");
+      badge.className = "code-lang";
+      badge.textContent = lang.toLowerCase();
+      pre.appendChild(badge);
+    }
+
+    // 复制按钮
+    const btn = document.createElement("button");
+    btn.className = "copy-btn";
+    btn.type = "button";
+    btn.setAttribute("aria-label", "复制代码");
+    btn.textContent = "复制";
+
+    btn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(code.innerText);
+        btn.classList.add("copied");
+        btn.textContent = "已复制";
+        setTimeout(() => {
+          btn.classList.remove("copied");
+          btn.textContent = "复制";
+        }, 1400);
+      } catch (e) {
+        // 失败兜底：选中 + 提示
+        const range = document.createRange();
+        range.selectNodeContents(code);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        btn.textContent = "选中→Ctrl/Cmd+C";
+        setTimeout(() => (btn.textContent = "复制"), 1600);
+      }
+    });
+
+    pre.appendChild(btn);
+  });
+}
+
 
 // ---------- 工具栏 & 目录 ----------
 function updateToolbar() {
