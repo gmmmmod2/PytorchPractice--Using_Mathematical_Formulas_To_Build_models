@@ -281,3 +281,11 @@ h3 {
     height: auto;
   }
 }
+
+.katex {
+  color: #f0f0f0;
+}
+
+.katex-display {
+  margin: 1em 0;
+}

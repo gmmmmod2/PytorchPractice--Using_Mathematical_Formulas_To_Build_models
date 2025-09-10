@@ -52,10 +52,59 @@ function setLoading() {
 }
 
 // ---------- Markdown 渲染 ----------
+function preprocessMathBlocks(md) {
+  // 统一换行
+  const s = (md || "").replace(/\r\n?/g, "\n");
+
+  // 规则：行首 $$、中间任意内容（可跨多行）、行尾 $$
+  // 用 div.math-block 包住内容，后续用 katex.render() 渲染
+  return s.replace(/(^|\n)\$\$([\s\S]*?)\$\$(\n|$)/g, (m, pre, body, post) => {
+    return `${pre}<div class="math-block">\n${body.trim()}\n</div>${post}`;
+  });
+}
+
 function renderMarkdown(mdText) {
+  // 先把 $$...$$ 块替换成占位容器，避免被 Marked 拆段
+  const preprocessed = preprocessMathBlocks(mdText);
+
+  // 正常 Markdown -> HTML
   marked.setOptions({ breaks: true, gfm: true, mangle: false, headerIds: true });
-  $("#article").innerHTML = marked.parse(mdText || "");
-  document.querySelectorAll("pre code").forEach(block => { try { hljs.highlightElement(block); } catch(e){} });
+  $("#article").innerHTML = marked.parse(preprocessed || "");
+
+  // 代码高亮
+  document.querySelectorAll("pre code").forEach(block => {
+    try { hljs.highlightElement(block); } catch(e){}
+  });
+
+  // 先渲染块级数学（我们自己包的 .math-block）
+  try {
+    document.querySelectorAll("#article .math-block").forEach(el => {
+      const tex = el.textContent.trim();
+      if (tex) {
+        katex.render(tex, el, { displayMode: true, throwOnError: false });
+      }
+    });
+  } catch (e) {
+    console.warn("KaTeX block render failed:", e);
+  }
+
+  // 再渲染行内数学（交给 KaTeX auto-render）
+  try {
+    if (window.renderMathInElement) {
+      window.renderMathInElement($("#article"), {
+        delimiters: [
+          // 注意：这里不再包含 $$...$$，因为上面已处理
+          { left: "$",  right: "$",  display: false },
+          { left: "\\(", right: "\\)", display: false },
+          { left: "\\[", right: "\\]", display: true }  // 可选：支持 \[...\] 行间
+        ],
+        throwOnError: false,
+        ignoredTags: ["script","noscript","style","textarea","pre","code"]
+      });
+    }
+  } catch (e) {
+    console.warn("KaTeX inline render failed:", e);
+  }
 }
 
 // ---------- 工具栏 & 目录 ----------
