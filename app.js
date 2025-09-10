@@ -2,10 +2,10 @@
 "use strict";
 
 const CATEGORY_LABELS = {
-  ABC: "入门（ABC）",
-  easy: "简单（easy）",
-  middling: "中等困难（middling）",
-  hard: "困难（hard）",
+  ABC: "入门",
+  easy: "简单",
+  middling: "中等",
+  hard: "困难",
 };
 const CATEGORY_ORDER = ["ABC", "easy", "middling", "hard"];
 const CONTENT_BASE = "content"; // 相对路径，适配 GitHub Pages 子路径
@@ -163,8 +163,7 @@ function pickRandom() {
   const all = CATEGORY_ORDER.flatMap(cat => state.items[cat].map(it => ({...it, category: cat})));
   if (!all.length) {
     renderStatusHTML("未发现可用题目", [
-      "需要 <code>content/manifest.json</code> 列出各目录下的 .md 文件。",
-      "可用我提供的脚本一键生成。"
+      "需要 <code>content/manifest.json</code> 列出各目录下的 .md 文件。"
     ], "warn");
     return;
   }
