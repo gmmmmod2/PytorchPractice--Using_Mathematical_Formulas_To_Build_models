@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NLP · PyTorch 练习题</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Markdown renderer + sanitizer -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+</head>
+<body>
+  <div class="page">
+    <header class="header">
+      <div class="title">NLP · PyTorch 练习题</div>
+      <div class="actions">
+        <button id="randomBtn" class="btn">随机练习</button>
+      </div>
+    </header>
+
+    <main class="main">
+      <aside class="sidebar">
+        <div class="tabs" id="tabs"></div>
+        <div class="search">
+          <input id="searchInput" placeholder="搜索题目…" />
+        </div>
+        <div class="list" id="fileList"></div>
+      </aside>
+
+      <section class="content">
+        <div class="content-header">
+          <div id="contentTitle" class="content-title">选择左侧题目开始练习</div>
+          <a id="viewRawLink" class="view-raw" href="#" target="_blank" rel="noreferrer" style="display:none;">在 GitHub 查看原文 →</a>
+        </div>
+        <div id="contentBody" class="markdown-body">
+          <div class="hint">点击左侧任意题目，或点“随机练习”快速开始。</div>
+        </div>
+        <div id="comments" class="comments"></div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      © <span id="year"></span> NLP PyTorch 练习 · 基于 GitHub 内容自动生成
+    </footer>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
