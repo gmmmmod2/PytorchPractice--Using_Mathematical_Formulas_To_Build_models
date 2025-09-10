@@ -2,8 +2,6 @@
 
 **目标**：从公式实现 LayerNorm，并比较禁用与启用可学习仿射的差别。
 
----
-
 ## 数学定义
 
 对输入 $x \in \mathbb{R}^{B \times L \times d}$，对最后一维做归一化：
@@ -23,14 +21,10 @@ $$
 y = \gamma \odot \mathrm{LN}(x) + \beta,\quad \gamma,\beta \in \mathbb{R}^{d}
 $$
 
----
-
 ## 实现要求
 
 - 自行实现 `LayerNorm`，支持 `elementwise_affine=True/False`。
 - 与 `torch.nn.LayerNorm` 数值比对。
-
----
 
 ## 参考实现
 
