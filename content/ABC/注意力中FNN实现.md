@@ -24,8 +24,6 @@ $$
 3. 支持自定义 `d_model` 和 `d_ff`。
 4. 输出形状保持 `(B, T, d_model)`。
 
----
-
 ## 参考实现（PyTorch）
 
 ```python
