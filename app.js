@@ -231,8 +231,6 @@ function renderTOC() {
       "<span class=\"chev\">▾</span>";
     const list = createEl("div", "section-list");
     state.items[cat]
-      .slice()
-      .sort((a,b) => a.name.localeCompare(b.name, "zh-Hans-CN"))
       .forEach(item => list.appendChild(buildItemLi(cat, item)));
     header.onclick = () => section.classList.toggle("open");
     section.appendChild(header);

@@ -1,6 +1,6 @@
 # 题目：Layer Normalization（不含仿射/含仿射两版）
 
-**目标**：从公式实现 LayerNorm。
+> 目标：从公式实现 LayerNorm。
 
 ## 数学定义
 
