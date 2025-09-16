@@ -52,4 +52,45 @@ class AdditiveAttention(nn.Module):
         alpha = F.softmax(e, dim=-1)                    # (B, L)
         c = torch.bmm(alpha.unsqueeze(1), H).squeeze(1) # (B, d_attn)
         return c, alpha
+        
+class BahdanauAttention(nn.Module):
+    def __init__(self, hidden_size,d_h,d_s):
+        super(BahdanauAttention, self).__init__()
+        self.hidden_size = hidden_size
+
+        self.W_s=nn.Linear(d_s,hidden_size,bias=False)
+        self.W_h = nn.Linear(d_h, hidden_size,bias=False)
+        self.v = nn.Linear(hidden_size, 1,bias=False)
+
+    def forward(self,H,s_t,padding_mask=None):
+        """
+        :param H:编码器所有隐藏状态 [B,L,d_h]
+        :param s_t:解码器当前隐藏状态 [B,d_s]
+        :param padding_mask: [B,L]
+        :return: context [B,hidden_size]
+                 attn_weights [B,L]
+        """
+        B,L=H.shape[:2]
+        s_t=s_t.unsqueeze(1).expand(-1,L,-1) #[B,L,d_s]
+        H=self.W_h(H)
+        s_t=self.W_s(s_t)
+        score=self.v(torch.tanh(H+s_t)).squeeze(-1) #[B,L]
+        if padding_mask is not None:
+            score=score.masked_fill(padding_mask==0,float("-inf"))
+        attn_weights=F.softmax(score,dim=-1)
+        context=torch.bmm(attn_weights.unsqueeze(1),H).squeeze(1) #[B,hidden_size]
+        return context,attn_weights
+        
+if __name__=='__main__':
+    hidden_size=8
+    d_h=4
+    d_s=4
+    B=2
+    L=8
+    H=torch.randn(B,L,d_h) #[2,8,4]
+    s_t=torch.randn(B,d_s) #[2,4]
+    Attention=BahdanauAttention(hidden_size,d_h,d_s)
+    context,attn_weights=Attention(H,s_t,padding_mask=None)
+    print(context.shape) #[2,8]
+    print(attn_weights.shape) #[2,8]
 ```
