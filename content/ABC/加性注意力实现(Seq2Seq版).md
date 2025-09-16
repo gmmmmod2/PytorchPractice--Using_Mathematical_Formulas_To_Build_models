@@ -52,7 +52,7 @@ class BahdanauAttention(nn.Module):
         attn_weights=F.softmax(score,dim=-1)
         context=torch.bmm(attn_weights.unsqueeze(1),H).squeeze(1) #[B,hidden_size]
         return context,attn_weights
-
+        
 if __name__=='__main__':
     hidden_size=8
     d_h=4
