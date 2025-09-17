@@ -25,34 +25,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class AdditiveAttention(nn.Module):
-    def __init__(self, d_h: int, d_s: int, d_attn: int):
-        super().__init__()
-        self.W_h = nn.Parameter(torch.empty(d_attn, d_h))
-        self.W_s = nn.Parameter(torch.empty(d_attn, d_s))
-        self.v   = nn.Parameter(torch.empty(d_attn))
-
-        self.act = nn.Tanh()
-        self.reset_parameters()
-
-    def reset_parameters(self):
-        # Xavier/Glorot 初始化：适合 tanh
-        nn.init.xavier_uniform_(self.W_h)
-        nn.init.xavier_uniform_(self.W_s)
-        # v 当作列向量，同样用 xavier（实现上需要 2D 张量）
-        nn.init.xavier_uniform_(self.v.unsqueeze(0))  # (1, d_attn)
-
-    def forward(self, H: torch.Tensor, s_t: torch.Tensor, padding_mask: torch.Tensor | None = None):
-        Wh = H @ self.W_h.T                   # (B,L,d_attn)
-        Ws = (s_t @ self.W_s.T).unsqueeze(1)  # (B,1,d_attn)
-        e  = self.act(Wh + Ws)                # (B, L, d_attn)
-        if padding_mask is not None:
-            e = e.masked_fill(~padding_mask, float('-inf'))
-
-        alpha = F.softmax(e, dim=-1)                    # (B, L)
-        c = torch.bmm(alpha.unsqueeze(1), H).squeeze(1) # (B, d_attn)
-        return c, alpha
-        
 class BahdanauAttention(nn.Module):
     def __init__(self, hidden_size,d_h,d_s):
         super(BahdanauAttention, self).__init__()

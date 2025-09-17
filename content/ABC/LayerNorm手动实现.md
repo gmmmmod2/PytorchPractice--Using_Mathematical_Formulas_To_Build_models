@@ -31,25 +31,41 @@ $$
 import torch
 import torch.nn as nn
 
+
+
 class MyLayerNorm(nn.Module):
     def __init__(self, normalized_shape: tuple, eps: float = 1e-5, elementwise_affine: bool=True):
-        super().__init__()
-        self.normalized_shape = normalized_shape     # 表示需要放射变换部分的维度
-        self.elementwise_affine = elementwise_affine # 是否开启放射变换计算
-        self.eps = eps
+        super(MyLayerNorm, self).__init__()
+        self.eps=eps
+        self.elementwise_affine=elementwise_affine # 是否开启放射变换计算
+        self.normalized_shape=normalized_shape # 表示需要放射变换部分的维度
         if elementwise_affine:
-            self.gamma = nn.Parameter(torch.ones(normalized_shape))
-            self.beta = nn.Parameter(torch.zeros(normalized_shape))
+            self.gamma=nn.Parameter(torch.ones(normalized_shape))
+            self.beta=nn.Parameter(torch.zeros(normalized_shape))
         else:
             # 保持模型结构一致
-            self.register_parameter("gamma", None)
-            self.register_parameter("beta", None)
+            self.register_parameter('gamma',None)
+            self.register_parameter('beta',None)
 
     def forward(self, x: torch.Tensor):
-        mean = x.mean(dim=-1, keepdim=True)
-        var = x.var(dim=-1, unbiased=False, keepdim=True)
-        xhat = (x - mean) / torch.sqrt(var + self.eps)
+        dims=[-(i+1) for i in range(len(self.normalized_shape))]
+        mean=x.mean(dim=dims,keepdim=True)
+        var=x.var(dim=dims,unbiased=False,keepdim=True)
+        xhat=(x-mean)/torch.sqrt(var+self.eps)
         if self.elementwise_affine:
-            xhat = self.gamma * xhat + self.beta
-        return xhat
+            return xhat*self.gamma+self.beta
+        else:
+            return xhat
+
+if __name__=='__main__':
+    x=torch.randn(2,8,16)
+    #对最后一维进行LN
+    last_one_dim_LN=MyLayerNorm(normalized_shape=(16,),elementwise_affine=True)
+    result=last_one_dim_LN(x)
+    print(result.shape)
+    print("-"*60)
+    # 对最后二维进行LN
+    last_one_dim_LN = MyLayerNorm(normalized_shape=(8,16), elementwise_affine=True)
+    result = last_one_dim_LN(x)
+    print(result.shape)
 ```
