@@ -1,6 +1,6 @@
-# 题目：加性注意力 (Transformer 符号系统)
+# 题目：Bahdanau 注意力
 
-> 目标 实现加性注意力，用于对齐查询向量 $Q$ 与键值对 $(K,V)$。
+> 目标 实现 Bahdanau 注意力，用于对齐查询向量 $Q$ 与键值对 $(K,V)$。
 
 ## 数学定义
 
@@ -10,7 +10,7 @@
 - 键序列 $K \in \mathbb{R}^{B \times T_k \times d_k}$
 - 值序列 $V \in \mathbb{R}^{B \times T_k \times d_v}$
 
-加性注意力的打分函数为
+Bahdanau 注意力的打分函数为
 
 $$
 \text{score}(Q, K) = v^\top \tanh(W_q Q + W_k K)
