@@ -4,7 +4,7 @@
 
 ## 数学定义
 
-输入 $x \in \mathbb{R}^{B \times L \times d}$，对最后一维做归一化：
+输入 $x \in \mathbb{R}^{B \times L \times d}$，对最后两维或一维做归一化：
 
 $$
 \mu = \frac{1}{d}\sum_{j=1}^{d} x_j,\quad
@@ -30,8 +30,6 @@ $$
 ```python
 import torch
 import torch.nn as nn
-
-
 
 class MyLayerNorm(nn.Module):
     def __init__(self, normalized_shape: tuple, eps: float = 1e-5, elementwise_affine: bool=True):

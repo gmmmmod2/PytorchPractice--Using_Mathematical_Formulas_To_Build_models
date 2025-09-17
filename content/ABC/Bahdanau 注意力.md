@@ -1,145 +1,68 @@
 # 题目：Bahdanau 注意力
 
-> 目标 实现 Bahdanau 注意力，用于对齐查询向量 $Q$ 与键值对 $(K,V)$。
+> 目标 实现 Bahdanau 注意力，用于对齐 decoder 当前隐状态 $s_t$ 与 encoder 序列 $H$。
 
 ## 数学定义
 
-给定
-
-- 查询序列 $Q \in \mathbb{R}^{B \times T_q \times d_q}$
-- 键序列 $K \in \mathbb{R}^{B \times T_k \times d_k}$
-- 值序列 $V \in \mathbb{R}^{B \times T_k \times d_v}$
-
-Bahdanau 注意力的打分函数为
+给定 $H=\{h_1,\dots,h_L\}, s_t$：
 
 $$
-\text{score}(Q, K) = v^\top \tanh(W_q Q + W_k K)
-$$
-
-归一化注意力权重为
-
-$$
-\alpha = \text{softmax}(\text{score})
-$$
-
-上下文向量为
-
-$$
-\text{output} = \sum \alpha_iV_i
+e_{t,i} = v^\top \tanh(W_h h_i + W_s s_t),\quad
+\alpha_{t,i} = \frac{\exp(e_{t,i})}{\sum_j \exp(e_{t,j})},\quad
+c_t = \sum_i \alpha_{t,i} h_i
 $$
 
 ## 额外的输入/输出规定
 
-- Q: $(B, T_q, d_q)$
-- K: $(B, T_k, d_k)$
-- V: $(B, T_k, d_v)$
-- output: $(B, T_q, d_v)$
-- attn_weights: $(B, T_q, T_k)$
+- `H` 形状 $(B,L,d_h)$，`s_t` 形状 $(B,d_s)$。
+- `W_h` 和 `W_s` 都将 `H` 和 `s_t` 映射到维度 `d_attn`
+- 允许 padding mask(形状 $(B,L)$，`0` 为 pad), 对无效位置加上一个足够大的负数。
 
-## 参考答案
+## 参考实现
 
 ```python
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class AdditiveAttention(nn.Module):
-    def __init__(self, query_dim, key_dim, attn_dim, dropout=0.1,bias=False):
-        """
-        :param query_dim:查询向量的维度
-        :param key_dim:键向量的维度
-        :param attn_dim:注意力隐藏层维度
-        :param dropout:dropout比率
-        """
-        super(AdditiveAttention, self).__init__()
-        self.query_dim = query_dim
-        self.key_dim = key_dim
-        self.attn_dim = attn_dim
+class BahdanauAttention(nn.Module):
+    def __init__(self, hidden_size,d_h,d_s):
+        super(BahdanauAttention, self).__init__()
+        self.hidden_size = hidden_size
 
-        self.W_q=nn.Linear(query_dim,attn_dim,bias=bias)
-        self.W_k=nn.Linear(key_dim,attn_dim,bias=bias)
-        self.v=nn.Linear(attn_dim,1,bias=bias)
-        self.tanh=nn.Tanh()
-        self.dropout=nn.Dropout(dropout)
+        self.W_s=nn.Linear(d_s,hidden_size,bias=False)
+        self.W_h = nn.Linear(d_h, hidden_size,bias=False)
+        self.v = nn.Linear(hidden_size, 1,bias=False)
 
-
-    def forward(self,q,k,v,mask=None):
+    def forward(self,H,s_t,padding_mask=None):
         """
-        :param q:查询向量 [batch_size,seq_len, query_dim]
-        :param k:键向量 [batch_size, seq_len, key_dim]
-        :param v:值向量 [batch_size, seq_len, value_dim]
-        :param mask:掩码 [batch_size, seq_len]
-        :return:context: 上下文向量 [batch_size, value_dim]
-                attn_weights: 注意力权重 [batch_size, seq_len]
+        :param H:编码器所有隐藏状态 [B,L,d_h]
+        :param s_t:解码器当前隐藏状态 [B,d_s]
+        :param padding_mask: [B,L]
+        :return: context [B,hidden_size]
+                 attn_weights [B,L]
         """
-        score=self.v(self.tanh(self.W_q(q)+self.W_k(k))).squeeze(-1) #[batch_size,seq_len]
-        if mask is not None:
-            score=score.masked_fill(mask==0,float("-inf"))
+        B,L=H.shape[:2]
+        s_t=s_t.unsqueeze(1).expand(-1,L,-1) #[B,L,d_s]
+        H=self.W_h(H)
+        s_t=self.W_s(s_t)
+        score=self.v(torch.tanh(H+s_t)).squeeze(-1) #[B,L]
+        if padding_mask is not None:
+            score=score.masked_fill(padding_mask==0,float("-inf"))
         attn_weights=F.softmax(score,dim=-1)
-        attn_weights=self.dropout(attn_weights)
-        context=torch.bmm(attn_weights.unsqueeze(1),v).squeeze(1)
+        context=torch.bmm(attn_weights.unsqueeze(1),H).squeeze(1) #[B,hidden_size]
         return context,attn_weights
 
-
-#额外变体：多头加性注意力
-class MultiHeadAdditiveAttention(nn.Module):
-    def __init__(self, num_heads, query_dim, key_dim, attn_dim, dropout=0.1,bias=False):
-        super(MultiHeadAdditiveAttention, self).__init__()
-        self.attn=nn.ModuleList(
-            [AdditiveAttention(query_dim, key_dim, attn_dim, dropout,bias=bias) for _ in range(num_heads)]
-        )
-        self.out_proj=nn.Linear(value_dim*num_heads,value_dim,bias=bias)
-
-    def forward(self,q,k,v,mask=None):
-        """
-        :param q: [batch_size,seq_len, query_dim]
-        :param k: [batch_size,seq_len, key_dim]
-        :param v: [batch_size,seq_len, value_dim]
-        :param mask: [batch_size, seq_len]
-        :return out: [batch_size,value_dim]
-                attn_weights 平均注意力权重 [batch_size,seq_len]
-        """
-        context=[]
-        attn_weights=[]
-        for attn in self.attn:
-            c,a=attn(q,k,v,mask=mask)
-            context.append(c)
-            attn_weights.append(a)
-        context=torch.cat(context,dim=-1) #[batch_size, value_dim*num_heads]
-        out=self.out_proj(context)
-        attn_weights=torch.stack(attn_weights,dim=1) #[batch_size, num_heads, seq_len]
-        attn_weights=attn_weights.mean(dim=1)
-        return out,attn_weights
-
 if __name__=='__main__':
-    # 参数设置
-    batch_size = 32
-    seq_len = 10
-    query_dim = 64
-    key_dim = 64
-    value_dim = 128
-    attn_dim = 256
-    num_heads = 2
-
-    # 创建加性注意力层
-    additive_attn = AdditiveAttention(query_dim, key_dim, attn_dim)
-
-    # 创建输入数据
-    query = torch.randn(batch_size, seq_len,query_dim)
-    keys = torch.randn(batch_size, seq_len, key_dim)
-    values = torch.randn(batch_size, seq_len, value_dim)
-
-    # 前向传播
-    context, attn_weights = additive_attn(query, keys, values)
-
-    print("单头加性注意力")
-    print(f"Context shape: {context.shape}")  # [32, 128]
-    print(f"Attention weights shape: {attn_weights.shape}")  # [32, 10]
-    print("-"*60)
-    #创建多头加性注意力层
-    attn=MultiHeadAdditiveAttention(num_heads, query_dim, key_dim, attn_dim)
-    context, attn_weights = attn(query, keys, values)
-    print("多头加性注意力")
-    print(f"Context shape: {context.shape}")  # [32, 128]
-    print(f"Attention weights shape: {attn_weights.shape}")  # [32, 10]
+    hidden_size=8
+    d_h=4
+    d_s=4
+    B=2
+    L=8
+    H=torch.randn(B,L,d_h) #[2,8,4]
+    s_t=torch.randn(B,d_s) #[2,4]
+    Attention=BahdanauAttention(hidden_size,d_h,d_s)
+    context,attn_weights=Attention(H,s_t,padding_mask=None)
+    print(context.shape) #[2,8]
+    print(attn_weights.shape) #[2,8]
 ```
