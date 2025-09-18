@@ -31,6 +31,8 @@ $$
 import torch
 import torch.nn as nn
 
+
+
 class MyLayerNorm(nn.Module):
     def __init__(self, normalized_shape: tuple, eps: float = 1e-5, elementwise_affine: bool=True):
         super(MyLayerNorm, self).__init__()
