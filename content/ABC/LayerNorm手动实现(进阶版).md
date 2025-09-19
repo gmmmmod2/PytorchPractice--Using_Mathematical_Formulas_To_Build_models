@@ -1,10 +1,10 @@
-# 题目：Layer Normalization(不含仿射/含仿射两版)
+# 题目：Layer Normalization(多维归一化版)
 
-> 目标 从公式实现 LayerNorm。
+> 目标：按公式实现对**最后一维或最后两维可选**的归一化方式，同时可选仿射。
 
 ## 数学定义
 
-输入 $x \in \mathbb{R}^{B \times L \times d}$，对最后两维或一维做归一化：
+输入 $x \in \mathbb{R}^{B \times L \times d}$：
 
 $$
 \mu = \frac{1}{d}\sum_{j=1}^{d} x_j,\quad
@@ -15,7 +15,7 @@ $$
 \mathrm{LN}(x) = \frac{x - \mu}{\sqrt{\sigma^2 + \epsilon}}
 $$
 
-带仿射参数时，输出：
+若使用仿射变换：
 
 $$
 y = \gamma \odot \mathrm{LN}(x) + \beta,\quad \gamma,\beta \in \mathbb{R}^{d}
@@ -25,13 +25,11 @@ $$
 
 - 自行实现 `LayerNorm`，支持 `elementwise_affine=True/False`。
 
-## 参考实现
+## 参考实现（PyTorch）
 
 ```python
 import torch
 import torch.nn as nn
-
-
 
 class MyLayerNorm(nn.Module):
     def __init__(self, normalized_shape: tuple, eps: float = 1e-5, elementwise_affine: bool=True):
