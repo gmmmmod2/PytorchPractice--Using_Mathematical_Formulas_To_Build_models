@@ -48,16 +48,10 @@ class MyLayerNorm(nn.Module):
         x: (B,L,d)
         """
         mean = x.mean(dim=-1, keepdim=True)
-        var = x.var(dim=-1, keepdim=True)
+        var = x.var(dim=-1, unbiased=False, keepdim=True)
         xhat = (x - mean) / torch.sqrt(var + self.eps)
         if self.elementwise_affine:
             return xhat * self.gamma + self.beta
 
         return xhat
-
-if __name__ == "__main__":
-    x = torch.randn(2, 8, 16)
-    ln = MyLayerNorm(16, elementwise_affine=True)
-    y = ln(x)
-    print(y.shape)  # torch.Size([2, 8, 16])
 ```

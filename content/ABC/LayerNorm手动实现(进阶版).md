@@ -54,16 +54,4 @@ class MyLayerNorm(nn.Module):
             return xhat*self.gamma+self.beta
         else:
             return xhat
-
-if __name__=='__main__':
-    x=torch.randn(2,8,16)
-    #对最后一维进行LN
-    last_one_dim_LN=MyLayerNorm(normalized_shape=(16,),elementwise_affine=True)
-    result=last_one_dim_LN(x)
-    print(result.shape)
-    print("-"*60)
-    # 对最后二维进行LN
-    last_one_dim_LN = MyLayerNorm(normalized_shape=(8,16), elementwise_affine=True)
-    result = last_one_dim_LN(x)
-    print(result.shape)
 ```
