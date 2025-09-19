@@ -49,6 +49,7 @@ class MyLayerNorm(nn.Module):
         """
         mean = x.mean(dim=-1, keepdim=True)
         var = x.var(dim=-1, unbiased=False, keepdim=True)
+        
         xhat = (x - mean) / torch.sqrt(var + self.eps)
         if self.elementwise_affine:
             return xhat * self.gamma + self.beta
