@@ -1,6 +1,8 @@
 {
   "ABC": [
-    "LayerNorm手动实现.md",
+    "LayerNorm手动实现(基础版).md",
+    "LayerNorm手动实现(进阶版).md",
+    "BatchNorm手动实现.md",
     "门控线性单元实现.md",
     "门控循环单元实现.md",
     "注意力中FNN实现.md",
