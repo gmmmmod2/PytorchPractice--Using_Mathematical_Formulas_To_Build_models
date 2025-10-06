@@ -2,18 +2,17 @@
 "use strict";
 
 const CATEGORY_LABELS = {
-  ABC: "入门",
   easy: "简单",
   middling: "中等",
   hard: "困难",
 };
-const CATEGORY_ORDER = ["ABC", "easy", "middling", "hard"];
+const CATEGORY_ORDER = ["easy", "middling", "hard"];
 const CONTENT_BASE = "content"; // 相对路径，适配 GitHub Pages 子路径
 const DEBUG = true;
 
 const state = {
   loaded: false,
-  items: { ABC: [], easy: [], middling: [], hard: [] },
+  items: { easy: [], middling: [], hard: [] },
   active: null, // {category, name, url}
 };
 
@@ -325,7 +324,7 @@ async function loadFromManifestOnly() {
     const manifest = await res.json();
     log("manifest 内容：", manifest);
 
-    const next = { ABC: [], easy: [], middling: [], hard: [] };
+    const next = { easy: [], middling: [], hard: [] };
     CATEGORY_ORDER.forEach(cat => {
       const arr = Array.isArray(manifest[cat]) ? manifest[cat] : [];
       arr.filter(n => extIsMd(n)).forEach(filename => {

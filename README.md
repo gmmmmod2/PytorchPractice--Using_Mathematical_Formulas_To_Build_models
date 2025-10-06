@@ -15,15 +15,10 @@
 
 ## 功能特色
 
-- 📂 **分类题库**：题目按照难度分为 入门 (ABC)、简单 (easy)、中等 (middling)、困难 (hard)。
-- 📖 **Markdown 展示**：题目与答案都以 Markdown 编写，支持公式与代码高亮。
+- 📂 **分类题库**：题目按照难度分为简单 (easy)、中等 (middling)、困难 (hard)。
+- 📖 **Markdown 展示**：题目与答案都以 Markdown 编写。
 - 🎲 **随机抽题**：支持一键随机出题，随时挑战自我。
 - 🌓 **黑色背景**：阅读更舒适，长时间练习也不会疲劳。
-
-## 在线使用
-
-无需下载，直接点击链接即可在线练习：  
-👉 [PytorchPractice--Using_Mathematical_Formulas_To_Build_models](https://gmmmmod2.github.io/PytorchPractice--Using_Mathematical_Formulas_To_Build_models/)
 
 ## 本地运行
 
@@ -40,7 +35,7 @@
 
 ## 贡献
 
-欢迎提交更多的练习题！
+欢迎提交更多的练习题！更多有关贡献的内容详见 `CONTRIBUTING.md` 文件
 
 - 在 content/ 目录下的对应难度文件夹添加你的 Markdown 题目。
 - 更新 manifest.json 以包含新的文件。
