@@ -12,8 +12,6 @@
 - $m$：在某个通道 $c$ 上，**所有样本在该通道的元素个数**  
   （例如：对于输入 $x \in \mathbb{R}^{B \times C \times H \times W}$, 在通道 $c$ 上 $m = B \times H \times W$）
 
----
-
 训练阶段（使用当前 batch 统计量）：
 
 $$
@@ -38,8 +36,6 @@ $$
 $$
 \mathrm{running\_var}_c \leftarrow (1-\mathrm{momentum})\cdot \mathrm{running\_var}_c \;+\; \mathrm{momentum}\cdot (\sigma_c^{2})^{(\text{batch})}
 $$
-
----
 
 推理阶段（使用滑动平均的统计量）：
 
