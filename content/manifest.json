@@ -1,5 +1,7 @@
 {
   "easy": [
+    "线性层实现.md",
+    "多层感知机实现.md",
     "LayerNorm手动实现(基础版).md",
     "LayerNorm手动实现(进阶版).md",
     "注意力中FNN实现.md",
